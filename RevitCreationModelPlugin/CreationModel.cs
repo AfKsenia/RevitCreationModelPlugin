@@ -30,12 +30,12 @@ namespace RevitCreationModelPlugin
             AddWindow(doc, level1, walls[1], 500);
             AddWindow(doc, level1, walls[2], 500);
             AddWindow(doc, level1, walls[3], 500);
-            AddRoof(doc, level2, walls);
+            AddRoof2(doc, level2, walls);
             transaction.Commit();
             return Result.Succeeded;
         }
 
-        
+
 
         public List<Wall> CreateWall(Document doc, Level level1, Level level2)
         {
@@ -102,7 +102,7 @@ namespace RevitCreationModelPlugin
                    .Where(x => x.Name.Equals("0610 x 1830 мм"))
                    .Where(x => x.FamilyName.Equals("Фиксированные"))
                    .FirstOrDefault();
-            
+
             //определяем точку, в которую добавим окно
             LocationCurve hostCurve = wall.Location as LocationCurve;
             XYZ point1 = hostCurve.Curve.GetEndPoint(0);
@@ -177,7 +177,7 @@ namespace RevitCreationModelPlugin
             //    footprintRoof.set_DefinesSlope(modelCurve, true);
             //    footprintRoof.set_SlopeAngle(modelCurve, 0.5);
             //}
-            foreach ( ModelCurve m in footPrintToModelCurveMapping)
+            foreach (ModelCurve m in footPrintToModelCurveMapping)
             {
                 footprintRoof.set_DefinesSlope(m, true);
                 footprintRoof.set_SlopeAngle(m, 0.5);
@@ -185,7 +185,35 @@ namespace RevitCreationModelPlugin
 
 
         }
+        private void AddRoof2(Document doc, Level level2, List<Wall> walls)
+        {
+            RoofType roofType = new FilteredElementCollector(doc)
+                .OfClass(typeof(RoofType))
+                   .OfType<RoofType>()
+                   .Where(x => x.Name.Equals("Типовой - 400мм"))
+                   .Where(x => x.FamilyName.Equals("Базовая крыша"))
+                   .FirstOrDefault();
+
+            double wallWidth = walls[0].Width; 
+            double dt = wallWidth / 2;
 
 
+            double width = UnitUtils.ConvertToInternalUnits(10000, UnitTypeId.Millimeters);
+            double depht = UnitUtils.ConvertToInternalUnits(5000, UnitTypeId.Millimeters);
+            double dx = width / 2;
+            double dy = depht / 2;
+            double extrusionStart = -dx - dt;
+            double extrusionEnd = dx + dt;
+
+
+            CurveArray curvearray = new CurveArray();
+            curvearray.Append(Line.CreateBound(new XYZ(0, -dy - dt, level2.Elevation), new XYZ(0, 0, level2.Elevation + dy)));
+            curvearray.Append(Line.CreateBound(new XYZ(0, 0, level2.Elevation + dy), new XYZ(0, dy + dt, level2.Elevation)));
+            
+            ReferencePlane plane = doc.Create.NewReferencePlane(new XYZ(0, 0, 0), new XYZ(0, 0, 20), new XYZ(0, 20, 0), doc.ActiveView);
+            var roof= doc.Create.NewExtrusionRoof(curvearray, plane, level2, roofType, extrusionStart, extrusionEnd);
+            roof.get_Parameter(BuiltInParameter.ROOF_EAVE_CUT_PARAM).Set(33619);
+        }
     }
 }
+    
